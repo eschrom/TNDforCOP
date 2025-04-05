@@ -57,7 +57,7 @@ def neg_log_likelihood_scaled_logit(params, data):
     return -1*np.sum(prob_pos + prob_neg)
 
 # Function to fit the scaled logit model
-def fit_scaled_logit(x_data, y_data, initial_guess=(0.5, 1, -1)):
+def fit_scaled_logit(x_data, y_data, initial_guess=(0.5, -1, 1)):
     """
     Fit the scaled logistic regression model.
     

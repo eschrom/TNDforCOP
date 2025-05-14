@@ -21,7 +21,7 @@ def fit_logistic_regression(x_data,y_data,x_vals_to_predict):
     # Perform logistic regression to get P(y|x)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        log_reg = LogisticRegression(penalty='none', solver="lbfgs", max_iter=1000)
+        log_reg = LogisticRegression(penalty=None, solver="lbfgs", max_iter=1000)
         log_reg.fit(x_data, y_data)
         # get probabilities for all x_vals_to_predict
         probs = log_reg.predict_proba(x_vals_to_predict)[:,1] # column 1 contains probability of infection

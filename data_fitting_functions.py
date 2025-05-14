@@ -21,7 +21,10 @@ def fit_logistic_regression(x_data,y_data,x_vals_to_predict):
     # Perform logistic regression to get P(y|x)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        log_reg = LogisticRegression(penalty=None, solver="lbfgs", max_iter=1000)
+        try:
+            log_reg = LogisticRegression(penalty='none', solver="lbfgs", max_iter=1000)
+        except:
+            log_reg = LogisticRegression(penalty=None, solver="lbfgs", max_iter=1000)
         log_reg.fit(x_data, y_data)
         # get probabilities for all x_vals_to_predict
         probs = log_reg.predict_proba(x_vals_to_predict)[:,1] # column 1 contains probability of infection
@@ -44,7 +47,7 @@ def scaled_logit(x, k, beta_0, beta_1):
     """
     return k / (1 + np.exp(beta_0 + beta_1*x))
 
-def neg_log_likelihood_scaled_logit(params, data):
+def neg_log_likelihood_scaled_logit(params, data, lambda_reg=0.1):
     # unpack data
     k, beta_0, beta_1 = params
     Abs = np.array(data[0]); infected = np.array(data[1])
@@ -54,30 +57,35 @@ def neg_log_likelihood_scaled_logit(params, data):
     prob_pos = infected * np.log(np.clip(scaled_logit(Abs, k, beta_0, beta_1), epsilon, 1 - epsilon))
     prob_neg = (1 - infected) * np.log(np.clip(1 - scaled_logit(Abs, k, beta_0, beta_1), epsilon, 1 - epsilon))
     
-    return -1*np.sum(prob_pos + prob_neg)
+    # Add L2 regularization penalty on beta_1 to discourage steep slopes
+    regularization_penalty = lambda_reg * beta_1**2
+    
+    return -1*np.sum(prob_pos + prob_neg) + regularization_penalty
 
-# Function to fit the scaled logit model
-def fit_scaled_logit(x_data, y_data, initial_guess=(0.5, -1, 1)):
+# Modified function to fit the scaled logit model with regularization
+def fit_scaled_logit(x_data, y_data, lambda_reg=0.1, initial_guess=(0.5, -1, 1)):
     """
-    Fit the scaled logistic regression model.
+    Fit the scaled logistic regression model with regularization to avoid steep slopes.
     
     Parameters:
     x_data (array-like): Independent variable values.
     y_data (array-like): Dependent variable values.
-    initial_guess (tuple): Initial guesses for k, m, and s.
+    lambda_reg (float): Regularization parameter. Higher values penalize steeper slopes more.
+    initial_guess (tuple): Initial guesses for k, beta_0, and beta_1.
     
     Returns:
-    tuple: Fitted parameters (k, m, s) and covariance matrix.
+    tuple: Fitted parameters (k, beta_0, beta_1).
     """
-    data = [x_data,y_data]
+    data = [x_data, y_data]
 
-    result = minimize(neg_log_likelihood_scaled_logit, initial_guess, \
-                    method='Nelder-Mead', args=(data), \
-                    options={'xatol': 1e-10, 'fatol': 1e-10, 'maxiter': 10000, 'maxfev': 20000})#, \
-                  #  bounds=((0,1),(-np.inf,0),(0,np.inf))) # Force beta0 < 0 and beta1 > 0
-    if result.success == False:
+    result = minimize(neg_log_likelihood_scaled_logit, initial_guess, 
+                     method='Nelder-Mead', args=(data, lambda_reg),
+                     options={'xatol': 1e-10, 'fatol': 1e-10, 'maxiter': 10000, 'maxfev': 20000})
+    
+    if not result.success:
         print("Did not find optimal parameter fit to minimize likelihood")
     return result.x
+
 
 def one_minus_OR(predicted_probabiliies):
     baseline_odds = predicted_probabiliies[0] / (1-predicted_probabiliies[0])
